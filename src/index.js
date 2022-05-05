@@ -1,54 +1,60 @@
 import express from 'express';
 import fetch from 'node-fetch';
+import bodyParser from 'body-parser';
 
 var app = express();
+app.use(bodyParser.urlencoded({ extended: true }));
 
 var PORT = process.env.PORT || 3000;
 
 app.post('/oauth/token', function(req, res) {
     const response = {
-        access_token: "no-auth"
+        access_token: req.body.client_secret
     }
 
     res.send(response);
 });
 
-app.get('/content/:domain/download-url', function(req, res) {
-    const url = { downloadUrl: `https://logo.clearbit.com/${req.params.domain}?size=800` };
+app.get('/content/:id/download-url', async function(req, res) {
+    const apiKey = req.headers.authorization.replace("Bearer ", "");
+    const request = await fetch(`https://api.giphy.com/v1/gifs/${req.params.id}?api_key=${apiKey}`);
+    var result = await request.json()
+    const url = { downloadUrl: result.data.images.original.url };
     res.send(url);
 });
 
 app.get('/content/', async function(req, res) {
-    const response = {
-        contentCount: 0,
-        offset: 0,
-        content: []
-    }
-
-    if (req.query.pageNumber > 1) {
-        res.send(response)
-    }
-
-    const domain = req.query.search.indexOf(".com") > 0 ? req.query.search : `${req.query.search}.com`
-
     try {
-        const request = await fetch(`https://logo.clearbit.com/${domain}`);
-        if (request.status === 200) {
-            response.content.push({
-                id: domain,
-                mimeType: "image/png",
-                previewUrl: `https://logo.clearbit.com/${domain}`,
-                name: `${domain} - from clearbit`,
-                tags: domain
-            })
-            response.contentCount = 1;
+        var request;
+        const apiKey = req.headers.authorization.replace("Bearer ", "");
+        var limit = 30;
+        if (req.query.search != null) {
+            request = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&limit=${limit}&offset=${req.query.skip}&rating=g&q=${req.query.search}`);
+        } else {
+            request = await fetch(`https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=${limit}&offset=${req.query.skip}&rating=g`);
         }
+
+        var results = await request.json()
+
+        const response = {
+            contentCount: results.pagination.total_count,
+            offset: results.pagination.offset,
+            content: results.data.map(dataPoint => {
+                return {
+                    id: dataPoint.id,
+                    mimeType: "image/gif",
+                    previewUrl: dataPoint.images.preview_gif.url,
+                    name: dataPoint.title,
+                    tags: `${dataPoint.username} - Giphy`
+                }
+            })
+        }
+
+        res.send(response);
 
     } catch (error) {
         console.log(error);
     }
-
-    res.send(response);
 });
 
 app.get('/', function(req, res) {
