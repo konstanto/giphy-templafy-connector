@@ -1,0 +1,8 @@
+{
+    "appService.zipIgnorePattern": [
+        "node_modules{,/**}",
+        ".vscode{,/**}"
+    ],
+    "appService.defaultWebAppToDeploy": "/subscriptions/1f9cb802-f68e-4f57-8965-9f8a10e660b3/resourceGroups/logoservice_group/providers/Microsoft.Web/sites/logoservice",
+    "appService.deploySubpath": "."
+}
